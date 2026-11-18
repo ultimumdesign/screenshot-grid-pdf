@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SnapGrid 2x2 — Phone Screenshot PDF Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>SnapGrid 2x2 — Mobile Phone Screenshot PDF Builder</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SortableJS for Drag-and-Drop Reordering -->
+  <!-- SortableJS for Touch & Mouse Drag-and-Drop Reordering -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
   <!-- jsPDF for Client-Side PDF Generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -17,6 +17,16 @@
   <style>
     body {
       font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Prevent iOS Safari auto-zoom on input focus by enforcing >=16px font on mobile */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+    @media (min-width: 768px) {
+      input.md-text-sm, select.md-text-sm {
+        font-size: 0.875rem !important;
+      }
     }
     .sortable-ghost {
       opacity: 0.35;
@@ -26,58 +36,57 @@
     }
     .sortable-drag {
       cursor: grabbing !important;
-      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.15) !important;
+      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25), 0 8px 10px -6px rgb(0 0 0 / 0.15) !important;
+      z-index: 50 !important;
     }
-    /* Custom scrollbar for clean workspace */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+    /* Safe area padding for modern iPhones with home indicator */
+    .pb-safe {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
+    /* Touch handle prevents accidental scroll hijacking */
+    .drag-handle {
+      touch-action: none;
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col pb-28 md:pb-10">
+
+  <!-- Hidden Native File Picker (Accessible from Top Bar, Dropzone, and Mobile Bottom Bar) -->
+  <input id="fileInput" type="file" multiple accept="image/*" class="hidden">
 
   <!-- Top Navigation Bar -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
           <i data-lucide="layout-grid" class="w-5 h-5"></i>
         </div>
-        <div>
+        <div class="truncate">
           <div class="flex items-center gap-2">
-            <h1 class="text-lg font-bold text-slate-900 tracking-tight">SnapGrid 2x2</h1>
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">SnapGrid 2x2</h1>
             <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-              Mobile Screenshot Optimized
+              Phone Screenshot PDF
             </span>
           </div>
-          <p class="text-xs text-slate-500 hidden sm:block">High-DPI 2x2 Equal Grid PDF Generator • 100% Client-Side</p>
+          <p class="text-[11px] text-slate-500 truncate">Equal 2×2 Grid per Page • 100% Client-Side</p>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex items-center gap-2 sm:gap-3">
-        <button id="demoBtn" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition flex items-center gap-1.5 border border-indigo-200">
-          <i data-lucide="smartphone" class="w-4 h-4"></i>
-          <span>Load 6 Phone Samples</span>
+      <!-- Top Right Actions -->
+      <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <button id="demoBtn" type="button" class="min-h-[40px] px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-xl transition flex items-center gap-1.5 border border-indigo-200">
+          <i data-lucide="smartphone" class="w-4 h-4 shrink-0"></i>
+          <span class="hidden xs:inline sm:inline">Load 6 Demo Phone Screenshots</span>
+          <span class="xs:hidden sm:hidden">6 Demos</span>
         </button>
 
-        <button id="deployModalBtn" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1.5">
+        <button id="deployModalBtn" type="button" title="GitHub Pages Setup Guide" class="min-h-[40px] px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
           <i data-lucide="github" class="w-4 h-4"></i>
-          <span class="hidden md:inline">GitHub Pages Guide</span>
+          <span class="hidden lg:inline">GitHub Pages</span>
         </button>
 
-        <button id="exportBtn" type="button" disabled class="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none rounded-lg shadow-sm transition flex items-center gap-2">
+        <!-- Desktop Primary Export Button -->
+        <button id="desktopExportBtn" type="button" disabled class="hidden md:flex min-h-[42px] px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none rounded-xl shadow-xs transition items-center gap-2">
           <i data-lucide="download" class="w-4 h-4"></i>
           <span>Download PDF</span>
         </button>
@@ -86,205 +95,221 @@
   </header>
 
   <!-- Main Workspace -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
 
-    <!-- Left Configuration Sidebar (4 Cols on Desktop) -->
-    <aside class="lg:col-span-4 space-y-5 lg:sticky lg:top-22">
+    <!-- Mobile Backdrop for Slide-Up Settings Sheet -->
+    <div id="mobileSettingsBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 hidden md:hidden opacity-0 transition-opacity duration-200"></div>
 
-      <!-- Upload Dropzone Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <label for="fileInput" id="dropZone" class="group relative flex flex-col items-center justify-center border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50/80 rounded-xl p-5 text-center cursor-pointer transition-all">
-          <div class="w-11 h-11 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+    <!-- Settings Drawer (Slide-up Sheet on Mobile <768px, Sticky Left Sidebar on Desktop >=768px) -->
+    <aside id="settingsSheet" class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl border-t border-slate-200 p-5 max-h-[85vh] overflow-y-auto transform translate-y-full transition-transform duration-300 ease-out md:static md:translate-y-0 md:z-auto md:col-span-5 lg:col-span-4 md:rounded-2xl md:shadow-xs md:border md:max-h-none md:p-5 md:sticky md:top-22 space-y-5">
+
+      <!-- Mobile Sheet Pill Handle & Header -->
+      <div class="flex items-center justify-between md:hidden pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <i data-lucide="sliders-horizontal" class="w-5 h-5 text-indigo-600"></i>
+          <h2 class="text-base font-bold text-slate-900">PDF & 2×2 Grid Settings</h2>
+        </div>
+        <button id="closeSettingsSheetBtn" type="button" class="min-h-[44px] px-4 rounded-xl bg-indigo-600 text-white text-sm font-semibold flex items-center gap-1.5 shadow-xs">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Done</span>
+        </button>
+      </div>
+
+      <!-- Desktop Upload Dropzone Card -->
+      <div class="hidden md:block pb-4 border-b border-slate-100">
+        <div id="dropZone" onclick="document.getElementById('fileInput').click()" class="group relative flex flex-col items-center justify-center border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50/80 rounded-xl p-5 text-center cursor-pointer transition-all">
+          <div class="w-11 h-11 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
             <i data-lucide="upload-cloud" class="w-6 h-6"></i>
           </div>
-          <p class="text-sm font-semibold text-slate-800">Click or drop phone screenshots</p>
-          <p class="text-xs text-slate-500 mt-1">Supports PNG, JPG, WebP (9:19.5, 9:16, or any ratio)</p>
-          <input id="fileInput" type="file" multiple accept="image/*" class="hidden">
-        </label>
+          <p class="text-sm font-semibold text-slate-800">Add Phone Screenshots</p>
+          <p class="text-xs text-slate-500 mt-0.5">Click or drop PNG, JPG, WebP (9:19.5, 9:16)</p>
+        </div>
+      </div>
 
-        <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
-          <span><strong id="statImages" class="text-slate-800">0</strong> Screenshots</span>
-          <span>•</span>
-          <span><strong id="statPages" class="text-slate-800">0</strong> PDF Pages</span>
-          <button id="clearAllBtn" type="button" class="text-red-600 hover:text-red-700 font-medium disabled:opacity-40" disabled>
-            Clear All
+      <!-- Live Slot Ratio Header -->
+      <div class="hidden md:flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-600"></i>
+          <span>2×2 Grid & Scaling</span>
+        </h2>
+        <span id="slotRatioBadge" class="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+          Slot: 9:13.2
+        </span>
+      </div>
+
+      <!-- PDF Page Header Title Input (16px font on mobile prevents iOS Safari zoom) -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label for="headerTitle" class="block text-xs font-bold uppercase tracking-wider text-slate-600">PDF Page Header Title</label>
+          <label class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer py-1">
+            <input type="checkbox" id="showPageNumbers" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+            <span>Show Page #</span>
+          </label>
+        </div>
+        <input type="text" id="headerTitle" value="Mobile App QA — 2x2 Flow" placeholder="Optional header title on each PDF page..."
+               class="md-text-sm w-full min-h-[44px] px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+      </div>
+
+      <!-- Scale Mode Toggle: Best Fit (No Crop) vs Fill Slot (Crop) -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Phone Screenshot Scale Mode</label>
+        <div class="grid grid-cols-2 gap-2.5">
+          <button type="button" data-scale="contain" class="scale-mode-btn min-h-[60px] p-3 rounded-xl border text-left transition flex flex-col justify-between bg-indigo-50/90 border-indigo-600 text-indigo-950 ring-1 ring-indigo-600">
+            <span class="text-xs font-bold flex items-center justify-between gap-1">
+              <span>Best Fit (No Crop)</span>
+              <i data-lucide="maximize-2" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+            </span>
+            <span class="text-[11px] text-slate-600 leading-snug mt-1">Full 9:19.5 screen centered in slot</span>
+          </button>
+
+          <button type="button" data-scale="cover" class="scale-mode-btn min-h-[60px] p-3 rounded-xl border border-slate-200 hover:border-slate-300 text-left transition flex flex-col justify-between bg-white text-slate-800">
+            <span class="text-xs font-bold flex items-center justify-between gap-1">
+              <span>Fill Slot (Crop)</span>
+              <i data-lucide="crop" class="w-4 h-4 text-slate-400 shrink-0"></i>
+            </span>
+            <span class="text-[11px] text-slate-500 leading-snug mt-1">Fills 100% of 2×2 cell equally</span>
           </button>
         </div>
       </div>
 
-      <!-- Layout & Scaling Settings Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-600"></i>
-            <span>2x2 Grid & Phone Scaling</span>
-          </h2>
-          <span id="slotRatioBadge" class="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-            Slot: 9:12.5
-          </span>
-        </div>
-
-        <!-- Document Header Title -->
+      <!-- Page Format & Margin Presets -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label for="headerTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Page Title Header</label>
-            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-              <input type="checkbox" id="showPageNumbers" checked class="rounded text-indigo-600 focus:ring-indigo-500">
-              <span>Page #</span>
-            </label>
-          </div>
-          <input type="text" id="headerTitle" value="Mobile App Flow — QA Screenshots" placeholder="Leave blank for no header (maximizes image height)"
-                 class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+          <label for="paperFormat" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Page Format</label>
+          <select id="paperFormat" class="md-text-sm w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="a4-portrait" selected>Portrait A4 (Tall Slots)</option>
+            <option value="letter-portrait">Portrait US Letter</option>
+            <option value="a4-landscape">Landscape A4</option>
+            <option value="letter-landscape">Landscape US Letter</option>
+          </select>
         </div>
 
-        <!-- Scale Mode Selector -->
         <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Screenshot Scale Mode</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" data-scale="contain" class="scale-mode-btn active-mode px-3 py-2.5 rounded-xl border text-left transition flex flex-col gap-0.5 bg-indigo-50/80 border-indigo-600 text-indigo-950 ring-1 ring-indigo-600">
-              <span class="text-xs font-bold flex items-center justify-between">
-                Best Fit (Contain)
-                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-indigo-600"></i>
-              </span>
-              <span class="text-[11px] text-slate-600 leading-tight">100% full phone screen, centered, zero crop</span>
-            </button>
-            <button type="button" data-scale="cover" class="scale-mode-btn px-3 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-left transition flex flex-col gap-0.5 bg-white text-slate-800">
-              <span class="text-xs font-bold flex items-center justify-between">
-                Fill Slot (Cover)
-                <i data-lucide="crop" class="w-3.5 h-3.5 text-slate-400"></i>
-              </span>
-              <span class="text-[11px] text-slate-500 leading-tight">Fills entire 2x2 cell equally (center crops)</span>
-            </button>
-          </div>
+          <label for="spacingPreset" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Page Margins</label>
+          <select id="spacingPreset" class="md-text-sm w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="tight" selected>Tight (Max Phone Size)</option>
+            <option value="normal">Normal</option>
+            <option value="wide">Wide</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Output DPI & Borders -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div>
+          <label for="renderQuality" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">PDF Export Resolution</label>
+          <select id="renderQuality" class="md-text-sm w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="high" selected>Ultra Crisp (300 DPI)</option>
+            <option value="standard">Fast / Compact (180 DPI)</option>
+          </select>
         </div>
 
-        <!-- Paper Format & Orientation -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label for="paperFormat" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Paper Size</label>
-            <select id="paperFormat" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="a4" selected>A4 (210 × 297 mm)</option>
-              <option value="letter">US Letter (8.5 × 11 in)</option>
-            </select>
-          </div>
-          <div>
-            <label for="paperOrientation" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Orientation</label>
-            <select id="paperOrientation" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="portrait" selected>Portrait (Best for Phone)</option>
-              <option value="landscape">Landscape</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Spacing / Margin Preset -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label for="spacingPreset" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Margin & Gap</label>
-            <select id="spacingPreset" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="tight" selected>Tight (Max Phone Size)</option>
-              <option value="balanced">Balanced</option>
-              <option value="spacious">Spacious</option>
-            </select>
-          </div>
-          <div>
-            <label for="renderQuality" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">PDF Sharpness</label>
-            <select id="renderQuality" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="high" selected>Ultra Crisp (300 DPI)</option>
-              <option value="standard">Standard (Fast / Compact)</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Visual Toggles -->
-        <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700">
-          <label class="inline-flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="showSlotBorders" checked class="rounded text-indigo-600 focus:ring-indigo-500">
-            <span>Draw subtle 2x2 slot borders</span>
+        <div class="flex flex-col justify-center gap-2 pt-2 sm:pt-4">
+          <label class="inline-flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer min-h-[28px]">
+            <input type="checkbox" id="showSlotBorders" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+            <span>2×2 Grid Slot Borders</span>
           </label>
-          <label class="inline-flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="showPhoneFrame" class="rounded text-indigo-600 focus:ring-indigo-500">
-            <span>Add dark border around image</span>
+          <label class="inline-flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer min-h-[28px]">
+            <input type="checkbox" id="showPhoneFrame" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+            <span>Crisp Screenshot Outline</span>
           </label>
         </div>
       </div>
 
+      <!-- Clear All Action inside Settings / Sidebar -->
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 pb-safe md:pb-0">
+        <span id="slotDimensionsReadout" class="font-mono">Slot: 96 × 136 mm</span>
+        <button id="clearAllBtn" type="button" disabled class="min-h-[38px] px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50 font-semibold disabled:opacity-40 transition">
+          Clear All Photos
+        </button>
+      </div>
     </aside>
 
-    <!-- Right Interactive Reorder & Live Page Preview Area (8 Cols on Desktop) -->
-    <section class="lg:col-span-8 space-y-6">
+    <!-- Right / Main Area: True 2x2 Paginated Preview & Touch Reordering (7/8 Cols on Desktop) -->
+    <section class="md:col-span-7 lg:col-span-8 space-y-5">
 
-      <!-- View Switcher / Instructions Banner -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2.5">
-          <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-          <p class="text-xs sm:text-sm font-medium text-slate-700">
-            <strong>Interactive 2x2 Page View:</strong> Drag any screenshot to reorder across slots or pages.
+      <!-- Quick Mobile Status Bar -->
+      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 px-3.5 py-3 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+          <p class="text-xs sm:text-sm font-medium text-slate-700 truncate">
+            <strong>Live 2×2 PDF Pages:</strong> Drag the <span class="inline-flex items-center px-1.5 py-0.5 bg-slate-100 rounded text-[11px] font-semibold text-slate-700">⠿ Drag</span> handle or tap arrows to reorder.
           </p>
         </div>
-        <div class="text-xs text-slate-500 font-mono" id="slotDimensionsReadout">
-          Slot size: 95 × 133 mm
-        </div>
+        <button type="button" onclick="openMobileSettings()" class="md:hidden shrink-0 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1">
+          <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+          <span>Title / Fit</span>
+        </button>
       </div>
 
       <!-- Empty State -->
-      <div id="emptyWorkspace" class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center space-y-4">
-        <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+      <div id="emptyWorkspace" class="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-8 sm:p-12 text-center space-y-4">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-2xs">
           <i data-lucide="smartphone" class="w-8 h-8"></i>
         </div>
-        <div class="max-w-md mx-auto">
-          <h3 class="text-base font-bold text-slate-900">No Phone Screenshots Uploaded Yet</h3>
-          <p class="text-xs sm:text-sm text-slate-500 mt-1">
-            Upload your mobile screenshots (iOS or Android) to see them automatically scaled and centered inside equal 2x2 page slots.
+        <div class="max-w-md mx-auto space-y-1.5">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900">Upload Your Phone Screenshots</h3>
+          <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+            Screenshots are automatically scaled and centered inside equal <strong>2×2 grid slots</strong> per PDF page without cropping your status bar or bottom navigation.
           </p>
         </div>
-        <div class="flex items-center justify-center gap-3 pt-2">
-          <button type="button" onclick="document.getElementById('fileInput').click()" class="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition">
-            Select Screenshots
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <button type="button" onclick="document.getElementById('fileInput').click()" class="w-full sm:w-auto min-h-[48px] px-6 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+            <i data-lucide="image-plus" class="w-5 h-5"></i>
+            <span>Choose Phone Screenshots</span>
           </button>
-          <button type="button" onclick="loadSamplePhoneScreenshots()" class="px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
-            Try with 6 Phone Mockups
+          <button type="button" onclick="loadSamplePhoneScreenshots()" class="w-full sm:w-auto min-h-[48px] px-5 py-3 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition flex items-center justify-center gap-2">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>Load 6 Demo Phone Screenshots</span>
           </button>
         </div>
       </div>
 
-      <!-- Master Sortable Container (Rendered as Paginated Sheets or Unified Grid) -->
-      <div id="pagesPreviewWrapper" class="space-y-8 hidden">
-        <!-- Draggable Queue Strip for rapid cross-page reordering -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <i data-lucide="grip" class="w-4 h-4 text-indigo-600"></i>
-              <span>Drag & Reorder Queue (Updates Live PDF Pages Below)</span>
-            </h3>
-            <span class="text-xs text-slate-400">Drag cards or use arrow buttons</span>
-          </div>
-          <div id="sortableQueue" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
-        </div>
-
-        <!-- Live Exact-Ratio WYSIWYG PDF Page Sheets -->
-        <div class="space-y-6">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 px-1 flex items-center gap-1.5">
-            <i data-lucide="file-check-2" class="w-4 h-4 text-indigo-600"></i>
-            <span>Exact 2x2 Page Layout Preview (WYSIWYG)</span>
-          </h3>
-          <div id="livePagesContainer" class="space-y-8 flex flex-col items-center"></div>
-        </div>
+      <!-- True 2x2 Paginated Preview Container (Each Page shows a real 2x2 grid on both Mobile and Desktop) -->
+      <div id="pagesPreviewWrapper" class="space-y-6 hidden">
+        <div id="livePagesContainer" class="space-y-6 flex flex-col items-center"></div>
       </div>
 
     </section>
   </main>
 
-  <!-- Export Progress Overlay -->
+  <!-- Mobile Sticky Bottom Action Bar (<768px) with >=44px Thumb-Friendly Targets -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 pt-2 pb-safe shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
+    <div class="grid grid-cols-12 gap-2 max-w-lg mx-auto items-center">
+      <!-- Add Photos Button (4 Cols) -->
+      <button type="button" onclick="document.getElementById('fileInput').click()" class="col-span-4 min-h-[48px] px-2 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold text-xs flex flex-col items-center justify-center gap-0.5 transition">
+        <i data-lucide="image-plus" class="w-5 h-5 text-indigo-600"></i>
+        <span>Add Photos</span>
+      </button>
+
+      <!-- Settings Sheet Trigger Button (3 Cols) -->
+      <button type="button" id="mobileSettingsBtn" class="col-span-3 min-h-[48px] px-2 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold text-xs flex flex-col items-center justify-center gap-0.5 transition">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5 text-slate-700"></i>
+        <span>Settings</span>
+      </button>
+
+      <!-- Primary Download PDF Button with Live Badge (5 Cols) -->
+      <button type="button" id="mobileExportBtn" disabled class="col-span-5 min-h-[48px] px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:pointer-events-none text-white font-bold text-xs flex flex-col items-center justify-center gap-0.5 shadow-sm transition">
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Download PDF</span>
+        </div>
+        <span id="mobileExportBadge" class="text-[10px] font-medium text-indigo-100">0 photos • 0 pages</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- High-DPI PDF Export Progress Modal -->
   <div id="exportOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-sm w-full p-6 text-center space-y-4">
       <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto animate-pulse">
         <i data-lucide="file-down" class="w-6 h-6"></i>
       </div>
       <div>
-        <h3 class="text-base font-bold text-slate-900">Generating High-Resolution PDF...</h3>
-        <p id="exportProgressText" class="text-xs text-slate-500 mt-1">Scaling screenshots to 2x2 slots</p>
+        <h3 class="text-base font-bold text-slate-900">Building High-DPI 2×2 PDF...</h3>
+        <p id="exportProgressText" class="text-xs text-slate-500 mt-1">Scaling phone screenshots into slots</p>
       </div>
-      <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+      <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
         <div id="exportProgressBar" class="bg-indigo-600 h-full transition-all duration-200" style="width: 0%"></div>
       </div>
     </div>
@@ -293,23 +318,23 @@
   <!-- GitHub Pages Quick Deploy Modal -->
   <div id="deployModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden">
-      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <i data-lucide="github" class="w-5 h-5 text-indigo-400"></i>
-          <h3 class="text-base font-bold">Deploy to Your GitHub Pages in 60 Seconds</h3>
+          <h3 class="text-sm sm:text-base font-bold">Host on GitHub Pages (Free & Client-Side)</h3>
         </div>
-        <button id="closeDeployModalBtn" type="button" class="text-slate-400 hover:text-white transition">
+        <button id="closeDeployModalBtn" type="button" class="p-1 text-slate-400 hover:text-white transition">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto text-sm text-slate-600">
+      <div class="p-5 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs sm:text-sm text-slate-600">
         <p>
-          This entire application is self-contained in a single <code class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-800 font-mono text-xs">index.html</code> file and requires zero backend servers. Run these commands in your terminal where <code class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-800 font-mono text-xs">index.html</code> is saved:
+          Save this file as <code class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-800 font-mono">index.html</code> and push it to a GitHub repository:
         </p>
 
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">1. Push to GitHub Repository</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Commands</span>
             <button type="button" id="copyGitCommandsBtn" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
               <i data-lucide="copy" class="w-3.5 h-3.5"></i>
               <span>Copy Commands</span>
@@ -318,60 +343,57 @@
           <pre id="gitCommandsBlock" class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed">git init
 git branch -M main
 git add index.html
-git commit -m "Deploy 2x2 phone screenshot grid to PDF app"
-# If using GitHub CLI (creates repo & pushes automatically):
+git commit -m "Add mobile-first 2x2 screenshot grid PDF web app"
 gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</pre>
         </div>
 
-        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-1.5">
-          <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900">2. Activate GitHub Pages</h4>
-          <ol class="list-decimal list-inside text-xs text-indigo-950 space-y-1">
-            <li>Open your repository on GitHub and click <strong>Settings → Pages</strong>.</li>
-            <li>Under <strong>Build and deployment → Branch</strong>, select <strong>main</strong> and <strong>/ (root)</strong>, then click <strong>Save</strong>.</li>
-            <li>Your live app will be available at <code class="font-mono bg-white/80 px-1.5 py-0.5 rounded">https://&lt;your-username&gt;.github.io/screenshot-grid-pdf/</code>.</li>
-          </ol>
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-1">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-900">Enable GitHub Pages</h4>
+          <p class="text-xs text-indigo-950">
+            In your GitHub repo, go to <strong>Settings → Pages</strong>, set Branch to <strong>main</strong> / <strong>root</strong>, and click <strong>Save</strong>.
+          </p>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Initialize Lucide icons
     lucide.createIcons();
 
     // Application State
     let screenshots = []; // Array of { id, name, src, width, height, rotation }
-    let scaleMode = 'contain'; // 'contain' (Best Fit) | 'cover' (Fill Slot)
+    let scaleMode = 'contain'; // 'contain' (Best Fit / No Crop) | 'cover' (Fill Slot / Crop)
+    let pageSortableInstances = [];
 
-    // Paper Dimensions in millimeters (mm)
-    const PAPER_SIZES = {
-      a4: { width: 210, height: 297, label: 'A4' },
-      letter: { width: 215.9, height: 279.4, label: 'Letter' }
+    // Paper & Orientation Presets in millimeters (mm)
+    const PAGE_FORMATS = {
+      'a4-portrait':      { format: 'a4',     orientation: 'portrait',  width: 210,   height: 297,   label: 'A4 Portrait' },
+      'letter-portrait':  { format: 'letter', orientation: 'portrait',  width: 215.9, height: 279.4, label: 'Letter Portrait' },
+      'a4-landscape':     { format: 'a4',     orientation: 'landscape', width: 297,   height: 210,   label: 'A4 Landscape' },
+      'letter-landscape': { format: 'letter', orientation: 'landscape', width: 279.4, height: 215.9, label: 'Letter Landscape' }
     };
 
-    // Spacing Presets in millimeters (mm) - optimized so 'tight' gives maximum vertical space to phone screenshots
+    // Margin & Gap Presets in mm (Tight maximizes vertical height for 9:19.5 phone screenshots)
     const SPACING_PRESETS = {
-      tight: { margin: 7, gap: 4, pad: 1.2 },
-      balanced: { margin: 12, gap: 7, pad: 2.5 },
-      spacious: { margin: 16, gap: 10, pad: 4 }
+      tight:  { margin: 6,  gap: 3.5, pad: 1.0 },
+      normal: { margin: 11, gap: 6.0, pad: 2.0 },
+      wide:   { margin: 16, gap: 9.0, pad: 3.5 }
     };
 
-    // DOM Elements
+    // DOM References
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const sortableQueue = document.getElementById('sortableQueue');
     const livePagesContainer = document.getElementById('livePagesContainer');
     const emptyWorkspace = document.getElementById('emptyWorkspace');
     const pagesPreviewWrapper = document.getElementById('pagesPreviewWrapper');
-    const exportBtn = document.getElementById('exportBtn');
+    const desktopExportBtn = document.getElementById('desktopExportBtn');
+    const mobileExportBtn = document.getElementById('mobileExportBtn');
+    const mobileExportBadge = document.getElementById('mobileExportBadge');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const demoBtn = document.getElementById('demoBtn');
-    const statImages = document.getElementById('statImages');
-    const statPages = document.getElementById('statPages');
     const headerTitleInput = document.getElementById('headerTitle');
     const showPageNumbersCheckbox = document.getElementById('showPageNumbers');
     const paperFormatSelect = document.getElementById('paperFormat');
-    const paperOrientationSelect = document.getElementById('paperOrientation');
     const spacingPresetSelect = document.getElementById('spacingPreset');
     const renderQualitySelect = document.getElementById('renderQuality');
     const showSlotBordersCheckbox = document.getElementById('showSlotBorders');
@@ -382,18 +404,31 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
     const exportProgressText = document.getElementById('exportProgressText');
     const exportProgressBar = document.getElementById('exportProgressBar');
 
-    // Initialize SortableJS on the queue container
-    new Sortable(sortableQueue, {
-      animation: 180,
-      ghostClass: 'sortable-ghost',
-      dragClass: 'sortable-drag',
-      onEnd: (evt) => {
-        if (evt.oldIndex === evt.newIndex) return;
-        const movedItem = screenshots.splice(evt.oldIndex, 1)[0];
-        screenshots.splice(evt.newIndex, 0, movedItem);
-        renderAll();
-      }
-    });
+    // Mobile Slide-Up Settings Drawer Logic
+    const settingsSheet = document.getElementById('settingsSheet');
+    const mobileSettingsBackdrop = document.getElementById('mobileSettingsBackdrop');
+    const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+    const closeSettingsSheetBtn = document.getElementById('closeSettingsSheetBtn');
+
+    window.openMobileSettings = function() {
+      mobileSettingsBackdrop.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        mobileSettingsBackdrop.classList.remove('opacity-0');
+        settingsSheet.classList.remove('translate-y-full');
+      });
+    };
+
+    window.closeMobileSettings = function() {
+      mobileSettingsBackdrop.classList.add('opacity-0');
+      settingsSheet.classList.add('translate-y-full');
+      setTimeout(() => {
+        mobileSettingsBackdrop.classList.add('hidden');
+      }, 250);
+    };
+
+    mobileSettingsBtn.addEventListener('click', window.openMobileSettings);
+    closeSettingsSheetBtn.addEventListener('click', window.closeMobileSettings);
+    mobileSettingsBackdrop.addEventListener('click', window.closeMobileSettings);
 
     // Scale Mode Toggle Buttons
     document.querySelectorAll('.scale-mode-btn').forEach(btn => {
@@ -402,19 +437,18 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
         document.querySelectorAll('.scale-mode-btn').forEach(b => {
           const isActive = b.dataset.scale === scaleMode;
           b.className = isActive
-            ? 'scale-mode-btn active-mode px-3 py-2.5 rounded-xl border text-left transition flex flex-col gap-0.5 bg-indigo-50/80 border-indigo-600 text-indigo-950 ring-1 ring-indigo-600'
-            : 'scale-mode-btn px-3 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-left transition flex flex-col gap-0.5 bg-white text-slate-800';
+            ? 'scale-mode-btn min-h-[60px] p-3 rounded-xl border text-left transition flex flex-col justify-between bg-indigo-50/90 border-indigo-600 text-indigo-950 ring-1 ring-indigo-600'
+            : 'scale-mode-btn min-h-[60px] p-3 rounded-xl border border-slate-200 hover:border-slate-300 text-left transition flex flex-col justify-between bg-white text-slate-800';
         });
         renderLivePages();
       });
     });
 
-    // Configuration Change Listeners
+    // Live Settings Updates
     [
       headerTitleInput,
       showPageNumbersCheckbox,
       paperFormatSelect,
-      paperOrientationSelect,
       spacingPresetSelect,
       showSlotBordersCheckbox,
       showPhoneFrameCheckbox
@@ -425,34 +459,36 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
       });
     });
 
-    // File Upload & Drag-and-Drop Handlers
+    // File Input & Drag-and-Drop
     fileInput.addEventListener('change', async (e) => {
       await handleFiles(Array.from(e.target.files));
       fileInput.value = '';
     });
 
-    ['dragenter', 'dragover'].forEach(evtName => {
-      dropZone.addEventListener(evtName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.add('border-indigo-600', 'bg-indigo-100/60');
+    if (dropZone) {
+      ['dragenter', 'dragover'].forEach(evtName => {
+        dropZone.addEventListener(evtName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add('border-indigo-600', 'bg-indigo-100/60');
+        });
       });
-    });
 
-    ['dragleave', 'drop'].forEach(evtName => {
-      dropZone.addEventListener(evtName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('border-indigo-600', 'bg-indigo-100/60');
+      ['dragleave', 'drop'].forEach(evtName => {
+        dropZone.addEventListener(evtName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove('border-indigo-600', 'bg-indigo-100/60');
+        });
       });
-    });
 
-    dropZone.addEventListener('drop', async (e) => {
-      const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-      if (droppedFiles.length > 0) {
-        await handleFiles(droppedFiles);
-      }
-    });
+      dropZone.addEventListener('drop', async (e) => {
+        const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (droppedFiles.length > 0) {
+          await handleFiles(droppedFiles);
+        }
+      });
+    }
 
     async function handleFiles(files) {
       for (const file of files) {
@@ -468,7 +504,7 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
             rotation: 0
           });
         } catch (err) {
-          console.error('Failed to load image:', file.name, err);
+          console.error('Failed to load screenshot:', file.name, err);
         }
       }
       renderAll();
@@ -492,20 +528,18 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
       });
     }
 
-    // Calculate current PDF Page & 2x2 Slot Geometry in millimeters
+    // Compute exact 2x2 Page & Slot Geometry in millimeters
     function getLayoutGeometry() {
-      const formatKey = paperFormatSelect.value;
-      const orientation = paperOrientationSelect.value;
+      const pageSpec = PAGE_FORMATS[paperFormatSelect.value];
       const spacing = SPACING_PRESETS[spacingPresetSelect.value];
-      const basePaper = PAPER_SIZES[formatKey];
 
-      const pageW = orientation === 'portrait' ? basePaper.width : basePaper.height;
-      const pageH = orientation === 'portrait' ? basePaper.height : basePaper.width;
+      const pageW = pageSpec.width;
+      const pageH = pageSpec.height;
 
       const titleText = headerTitleInput.value.trim();
       const showPageNum = showPageNumbersCheckbox.checked;
       const hasHeader = Boolean(titleText || showPageNum);
-      const headerHeight = hasHeader ? 10 : 0;
+      const headerHeight = hasHeader ? 9.5 : 0;
 
       const usableW = pageW - spacing.margin * 2;
       const usableH = pageH - spacing.margin * 2 - headerHeight;
@@ -514,8 +548,9 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
       const slotH = (usableH - spacing.gap) / 2;
 
       return {
-        formatKey,
-        orientation,
+        format: pageSpec.format,
+        orientation: pageSpec.orientation,
+        label: pageSpec.label,
         pageW,
         pageH,
         margin: spacing.margin,
@@ -532,12 +567,12 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
 
     function updatePageMetricsReadout() {
       const geo = getLayoutGeometry();
-      const normalizedHeight = ((geo.slotH / geo.slotW) * 9).toFixed(1);
-      slotRatioBadge.textContent = `Slot Ratio ~ 9:${normalizedHeight}`;
-      slotDimensionsReadout.textContent = `Each 2x2 Slot: ${geo.slotW.toFixed(1)} × ${geo.slotH.toFixed(1)} mm`;
+      const normalizedH = ((geo.slotH / geo.slotW) * 9).toFixed(1);
+      if (slotRatioBadge) slotRatioBadge.textContent = `Slot ~ 9:${normalizedH}`;
+      if (slotDimensionsReadout) slotDimensionsReadout.textContent = `Each 2×2 Slot: ${geo.slotW.toFixed(0)} × ${geo.slotH.toFixed(0)} mm`;
     }
 
-    // Item Actions: Rotate, Move, Remove
+    // One-Tap Reorder, Rotate & Delete Actions (Mobile & Desktop)
     window.rotateScreenshot = function(id) {
       const item = screenshots.find(s => s.id === id);
       if (!item) return;
@@ -561,78 +596,51 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
     clearAllBtn.addEventListener('click', () => {
       screenshots = [];
       renderAll();
+      window.closeMobileSettings();
     });
 
-    // Render Queue + Live WYSIWYG Pages
     function renderAll() {
       const count = screenshots.length;
       const pageCount = Math.ceil(count / 4);
 
-      statImages.textContent = count;
-      statPages.textContent = pageCount;
-      exportBtn.disabled = count === 0;
+      desktopExportBtn.disabled = count === 0;
+      mobileExportBtn.disabled = count === 0;
       clearAllBtn.disabled = count === 0;
+
+      desktopExportBtn.innerHTML = count > 0
+        ? `<i data-lucide="download" class="w-4 h-4"></i><span>Download PDF (${pageCount} ${pageCount === 1 ? 'Page' : 'Pages'})</span>`
+        : `<i data-lucide="download" class="w-4 h-4"></i><span>Download PDF</span>`;
+
+      mobileExportBadge.textContent = `${count} ${count === 1 ? 'photo' : 'photos'} • ${pageCount} ${pageCount === 1 ? 'page' : 'pages'}`;
 
       emptyWorkspace.classList.toggle('hidden', count > 0);
       pagesPreviewWrapper.classList.toggle('hidden', count === 0);
 
       updatePageMetricsReadout();
-      renderQueueCards();
       renderLivePages();
       lucide.createIcons();
     }
 
-    function renderQueueCards() {
-      sortableQueue.innerHTML = '';
-
-      screenshots.forEach((item, idx) => {
-        const pageNum = Math.floor(idx / 4) + 1;
-        const slotNum = (idx % 4) + 1;
-        const isRotatedSideways = item.rotation === 90 || item.rotation === 270;
-        const effW = isRotatedSideways ? item.height : item.width;
-        const effH = isRotatedSideways ? item.width : item.height;
-
-        const card = document.createElement('div');
-        card.className = 'group relative bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 flex flex-col items-center cursor-grab active:cursor-grabbing transition select-none';
-        card.dataset.id = item.id;
-
-        card.innerHTML = `
-          <div class="w-full flex items-center justify-between mb-1.5">
-            <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white">
-              P${pageNum} • #${slotNum}
-            </span>
-            <div class="flex items-center gap-1 opacity-85 group-hover:opacity-100">
-              <button type="button" onclick="moveScreenshot(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Earlier" class="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-30">
-                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
-              </button>
-              <button type="button" onclick="moveScreenshot(${idx}, 1)" ${idx === screenshots.length - 1 ? 'disabled' : ''} title="Move Later" class="p-1 rounded hover:bg-slate-200 text-slate-600 disabled:opacity-30">
-                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-              </button>
-              <button type="button" onclick="rotateScreenshot('${item.id}')" title="Rotate 90°" class="p-1 rounded hover:bg-slate-200 text-slate-600">
-                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
-              </button>
-              <button type="button" onclick="removeScreenshot('${item.id}')" title="Remove" class="p-1 rounded hover:bg-red-100 text-red-600">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="w-full h-36 bg-white rounded-lg border border-slate-200/80 flex items-center justify-center overflow-hidden p-1.5">
-            <img src="${item.src}" alt="${item.name}" style="transform: rotate(${item.rotation}deg);" class="max-w-full max-h-full object-contain rounded transition-transform">
-          </div>
-
-          <div class="w-full mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
-            <span class="truncate max-w-[65%]" title="${item.name}">${item.name}</span>
-            <span class="font-mono text-[10px] text-slate-400">${effW}×${effH}</span>
-          </div>
-        `;
-
-        sortableQueue.appendChild(card);
+    // Sync order from DOM after cross-page or intra-page drag-and-drop
+    function syncOrderFromDOM() {
+      const allCards = Array.from(livePagesContainer.querySelectorAll('.screenshot-slot-card'));
+      const newOrdered = [];
+      allCards.forEach(card => {
+        const found = screenshots.find(s => s.id === card.dataset.id);
+        if (found) newOrdered.push(found);
       });
+      if (newOrdered.length === screenshots.length) {
+        screenshots = newOrdered;
+      }
+      renderAll();
     }
 
-    // Render WYSIWYG Paginated 2x2 Sheets showing exact scaling and centering
+    // Render True 2x2 Paginated Sheets (grid-cols-2 on both Mobile and Desktop!)
     function renderLivePages() {
+      // Destroy previous Sortable instances cleanly
+      pageSortableInstances.forEach(inst => inst.destroy());
+      pageSortableInstances = [];
+
       livePagesContainer.innerHTML = '';
       if (screenshots.length === 0) return;
 
@@ -643,75 +651,159 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
 
       for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
         const pageItems = screenshots.slice(pageIdx * 4, pageIdx * 4 + 4);
-
-        // Calculate percentage metrics relative to page width & height for responsive CSS scaling
-        const marginPctW = (geo.margin / geo.pageW) * 100;
-        const marginPctH = (geo.margin / geo.pageH) * 100;
-        const gapPctW = (geo.gap / geo.pageW) * 100;
-        const gapPctH = (geo.gap / geo.pageH) * 100;
-        const headerPctH = (geo.headerHeight / geo.pageH) * 100;
-        const padPct = (geo.pad / geo.slotW) * 100;
-
-        const sheetWrapper = document.createElement('div');
-        sheetWrapper.className = 'w-full max-w-2xl';
-
         const pageNumberLabel = `Page ${pageIdx + 1} of ${totalPages}`;
 
-        sheetWrapper.innerHTML = `
-          <div class="flex items-center justify-between text-xs text-slate-500 mb-2 px-1">
-            <span class="font-semibold text-slate-700">${pageNumberLabel}</span>
-            <span>${PAPER_SIZES[geo.formatKey].label} • ${geo.orientation.charAt(0).toUpperCase() + geo.orientation.slice(1)} (2x2 Equal Grid)</span>
+        const sheetContainer = document.createElement('div');
+        sheetContainer.className = 'w-full max-w-xl bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden';
+
+        // Top Page Bar
+        const pageBar = document.createElement('div');
+        pageBar.className = 'px-3.5 py-2 bg-slate-800 text-white flex items-center justify-between text-xs';
+        pageBar.innerHTML = `
+          <div class="flex items-center gap-2 font-bold">
+            <span class="px-2 py-0.5 rounded bg-indigo-500 text-white">${pageNumberLabel}</span>
+            <span class="text-slate-300 font-medium">${geo.label} • 2×2 Grid</span>
           </div>
-
-          <div class="relative w-full bg-white rounded-lg shadow-md border border-slate-300 overflow-hidden transition-all"
-               style="aspect-ratio: ${geo.pageW} / ${geo.pageH}; padding: ${marginPctH}% ${marginPctW}%;">
-            <div class="w-full h-full flex flex-col">
-              ${geo.hasHeader ? `
-                <div class="flex items-center justify-between border-b border-slate-200 pb-1 mb-2 shrink-0" style="height: ${headerPctH}%;">
-                  <div class="text-xs sm:text-sm font-bold text-slate-800 truncate pr-2">
-                    ${geo.titleText || ''}
-                  </div>
-                  ${geo.showPageNum ? `<div class="text-[11px] font-medium text-slate-400 shrink-0">${pageNumberLabel}</div>` : ''}
-                </div>
-              ` : ''}
-
-              <!-- 2x2 Equal Ratio Grid Area -->
-              <div class="flex-1 grid grid-cols-2 grid-rows-2 min-h-0" style="column-gap: ${gapPctW}%; row-gap: ${gapPctH}%;">
-                ${[0, 1, 2, 3].map(slotIdx => {
-                  const item = pageItems[slotIdx];
-                  const borderClass = showBorders ? 'border border-slate-200 bg-slate-50/40' : '';
-
-                  if (!item) {
-                    return `
-                      <div class="w-full h-full rounded ${borderClass} flex items-center justify-center text-[11px] text-slate-300 select-none">
-                        Empty Slot ${slotIdx + 1}
-                      </div>
-                    `;
-                  }
-
-                  const fitClass = scaleMode === 'cover' ? 'w-full h-full object-cover' : 'max-w-full max-h-full object-contain';
-                  const frameClass = showFrame ? 'ring-1 ring-slate-900/20 shadow-xs' : '';
-
-                  return `
-                    <div class="relative w-full h-full rounded overflow-hidden flex items-center justify-center ${borderClass}"
-                         style="padding: ${padPct}%;">
-                      <img src="${item.src}" alt="${item.name}"
-                           style="transform: rotate(${item.rotation}deg);"
-                           class="${fitClass} ${frameClass} rounded-[2px] transition-all">
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-          </div>
+          <span class="text-[11px] text-slate-300">Slots ${pageIdx * 4 + 1}–${Math.min((pageIdx + 1) * 4, screenshots.length)}</span>
         `;
 
-        livePagesContainer.appendChild(sheetWrapper);
+        // WYSIWYG Page Sheet Body
+        const sheetBody = document.createElement('div');
+        sheetBody.className = 'p-2.5 sm:p-5 bg-white space-y-2.5';
+
+        // Live Page Header Preview inside Sheet
+        if (geo.hasHeader) {
+          const headerPreview = document.createElement('div');
+          headerPreview.className = 'flex items-center justify-between border-b border-slate-200 pb-1.5 px-1';
+          headerPreview.innerHTML = `
+            <div class="text-xs sm:text-sm font-bold text-slate-900 truncate pr-2">
+              ${geo.titleText ? escapeHtml(geo.titleText) : '<span class="text-slate-400 font-normal italic">No title text</span>'}
+            </div>
+            ${geo.showPageNum ? `<div class="text-[11px] font-medium text-slate-400 shrink-0">${pageNumberLabel}</div>` : ''}
+          `;
+          sheetBody.appendChild(headerPreview);
+        }
+
+        // 2x2 Grid Container (Always grid-cols-2 even on small mobile screens so user sees true 2x2 layout)
+        const gridEl = document.createElement('div');
+        gridEl.className = 'page-2x2-sortable grid grid-cols-2 gap-2.5 sm:gap-4';
+
+        pageItems.forEach((item, localIdx) => {
+          const globalIdx = pageIdx * 4 + localIdx;
+          const slotNumber = localIdx + 1;
+
+          const card = document.createElement('div');
+          card.className = `screenshot-slot-card group relative rounded-xl flex flex-col justify-between overflow-hidden transition ${
+            showBorders ? 'border border-slate-200/90 bg-slate-50/60' : 'bg-slate-50/30'
+          }`;
+          card.dataset.id = item.id;
+
+          // Top Touch Control Bar: Dedicated Drag Handle + Slot Badge + Delete Button
+          const fitClass = scaleMode === 'cover'
+            ? 'w-full h-full object-cover'
+            : 'max-w-full max-h-full object-contain';
+          const frameClass = showFrame ? 'ring-1 ring-slate-900/15 shadow-2xs' : '';
+
+          card.innerHTML = `
+            <!-- Top Touch Bar -->
+            <div class="flex items-center justify-between gap-1 px-2 py-1.5 bg-white/95 border-b border-slate-200/70 z-10">
+              <button type="button" class="drag-handle min-h-[34px] px-2 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 active:bg-indigo-100 text-slate-700 hover:text-indigo-700 font-semibold text-[11px] flex items-center gap-1 cursor-grab active:cursor-grabbing select-none" title="Drag to reorder">
+                <i data-lucide="grip-vertical" class="w-3.5 h-3.5 text-indigo-600"></i>
+                <span>Slot ${slotNumber}</span>
+              </button>
+
+              <div class="flex items-center gap-0.5">
+                <button type="button" onclick="rotateScreenshot('${item.id}')" class="min-w-[34px] min-h-[34px] rounded-lg hover:bg-slate-100 active:bg-slate-200 text-slate-600 flex items-center justify-center transition" title="Rotate 90°">
+                  <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                </button>
+                <button type="button" onclick="removeScreenshot('${item.id}')" class="min-w-[34px] min-h-[34px] rounded-lg hover:bg-red-50 active:bg-red-100 text-red-600 flex items-center justify-center transition" title="Delete screenshot">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Exact Aspect Ratio 2x2 Slot Canvas Preview -->
+            <div class="relative w-full flex items-center justify-center overflow-hidden bg-white p-1.5 sm:p-2"
+                 style="aspect-ratio: ${geo.slotW} / ${geo.slotH};">
+              <img src="${item.src}" alt="${escapeHtml(item.name)}"
+                   style="transform: rotate(${item.rotation}deg);"
+                   class="${fitClass} ${frameClass} rounded-[3px] transition-transform select-none pointer-events-none">
+            </div>
+
+            <!-- Bottom One-Handed Mobile Tap Reorder Bar -->
+            <div class="flex items-center justify-between gap-1 px-1.5 py-1 bg-white/95 border-t border-slate-200/70 text-[11px]">
+              <button type="button" onclick="moveScreenshot(${globalIdx}, -1)" ${globalIdx === 0 ? 'disabled' : ''}
+                      class="min-h-[34px] px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 disabled:pointer-events-none text-slate-700 font-semibold flex items-center gap-1 transition">
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                <span>Prev</span>
+              </button>
+
+              <span class="text-[10px] font-mono text-slate-400 truncate max-w-[70px] sm:max-w-[120px]" title="${escapeHtml(item.name)}">
+                #${globalIdx + 1}
+              </span>
+
+              <button type="button" onclick="moveScreenshot(${globalIdx}, 1)" ${globalIdx === screenshots.length - 1 ? 'disabled' : ''}
+                      class="min-h-[34px] px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 disabled:pointer-events-none text-slate-700 font-semibold flex items-center gap-1 transition">
+                <span>Next</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          `;
+
+          gridEl.appendChild(card);
+        });
+
+        // Fill remaining empty slots on the last page so the 2x2 grid proportion stays identical
+        const emptyCount = 4 - pageItems.length;
+        for (let e = 0; e < emptyCount; e++) {
+          const emptySlotNum = pageItems.length + e + 1;
+          const placeholder = document.createElement('div');
+          placeholder.onclick = () => document.getElementById('fileInput').click();
+          placeholder.className = 'rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 bg-slate-50/40 hover:bg-indigo-50/30 flex flex-col items-center justify-center p-4 text-center cursor-pointer transition select-none';
+          placeholder.style.aspectRatio = `${geo.slotW} / ${geo.slotH}`;
+          placeholder.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-1.5">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-400">Empty Slot ${emptySlotNum}</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Tap to add photo</span>
+          `;
+          gridEl.appendChild(placeholder);
+        }
+
+        sheetBody.appendChild(gridEl);
+        sheetContainer.appendChild(pageBar);
+        sheetContainer.appendChild(sheetBody);
+        livePagesContainer.appendChild(sheetContainer);
+
+        // Initialize SortableJS with a dedicated .drag-handle so vertical phone scrolling never accidentally drags a card
+        const sortableInstance = new Sortable(gridEl, {
+          group: 'shared-2x2-pages',
+          handle: '.drag-handle',
+          draggable: '.screenshot-slot-card',
+          animation: 180,
+          ghostClass: 'sortable-ghost',
+          dragClass: 'sortable-drag',
+          onEnd: () => {
+            syncOrderFromDOM();
+          }
+        });
+        pageSortableInstances.push(sortableInstance);
       }
+
+      lucide.createIcons();
     }
 
-    // High-Resolution Canvas Helper for Rotated / Center-Cropped / Crisp Phone Screenshots
-    function renderSlotImageToCanvas(item, targetWidthMm, targetHeightMm, scaleMode, dpiScale) {
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Offscreen High-DPI Canvas Renderer for Best Fit (Contain) & Fill Slot (Cover)
+    function renderSlotImageToCanvas(item, targetWidthMm, targetHeightMm, mode, dpiScale) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -719,18 +811,17 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
           const srcW = isRotatedSideways ? img.naturalHeight : img.naturalWidth;
           const srcH = isRotatedSideways ? img.naturalWidth : img.naturalHeight;
 
-          // Calculate pixel dimensions at target DPI (e.g. 10 px per mm ~ 254 DPI)
-          const pxPerMm = dpiScale;
-          const slotPxW = Math.round(targetWidthMm * pxPerMm);
-          const slotPxH = Math.round(targetHeightMm * pxPerMm);
-
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          if (scaleMode === 'cover') {
-            // Fill entire slot aspect ratio (center crop)
+          if (mode === 'cover') {
+            const slotPxW = Math.round(targetWidthMm * dpiScale);
+            const slotPxH = Math.round(targetHeightMm * dpiScale);
             canvas.width = slotPxW;
             canvas.height = slotPxH;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, slotPxW, slotPxH);
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
 
@@ -754,19 +845,21 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
               renderHeightMm: targetHeightMm
             });
           } else {
-            // Best Fit (Contain): preserve 100% of phone screenshot with zero cropping
+            // Best Fit (No Crop): proportionally scale tall phone screenshot to fit maximally inside 2x2 slot
             const ratio = Math.min(targetWidthMm / srcW, targetHeightMm / srcH);
             const renderWidthMm = srcW * ratio;
             const renderHeightMm = srcH * ratio;
 
-            // Keep native resolution (capped for performance) so small mobile text stays razor-sharp
-            const maxCanvasSide = dpiScale > 8 ? 2200 : 1400;
-            const nativeScale = Math.min(1, maxCanvasSide / Math.max(srcW, srcH));
+            const maxSidePx = dpiScale > 8 ? 2200 : 1400;
+            const nativeScale = Math.min(1, maxSidePx / Math.max(srcW, srcH));
             const canvasW = Math.max(1, Math.round(srcW * nativeScale));
             const canvasH = Math.max(1, Math.round(srcH * nativeScale));
 
             canvas.width = canvasW;
             canvas.height = canvasH;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasW, canvasH);
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
 
@@ -791,16 +884,15 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
       });
     }
 
-    // Export to Paginated 2x2 PDF
-    exportBtn.addEventListener('click', async () => {
+    // Export High-Resolution Paginated 2x2 PDF
+    async function exportToPdf() {
       if (screenshots.length === 0) return;
 
       exportOverlay.classList.remove('hidden');
       exportOverlay.classList.add('flex');
       exportProgressBar.style.width = '5%';
 
-      // Allow UI to paint modal before heavy canvas work
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 40));
 
       try {
         const { jsPDF } = window.jspdf;
@@ -808,7 +900,7 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
         const doc = new jsPDF({
           orientation: geo.orientation,
           unit: 'mm',
-          format: geo.formatKey,
+          format: geo.format,
           compress: true
         });
 
@@ -822,55 +914,54 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
           const pageIndex = Math.floor(i / 4);
           const slotIndex = i % 4;
 
-          const progressPct = Math.round(((i + 1) / screenshots.length) * 95);
-          exportProgressBar.style.width = `${progressPct}%`;
-          exportProgressText.textContent = `Processing screenshot ${i + 1} of ${screenshots.length} (Page ${pageIndex + 1})...`;
+          const pct = Math.round(((i + 1) / screenshots.length) * 95);
+          exportProgressBar.style.width = `${pct}%`;
+          exportProgressText.textContent = `Rendering screenshot ${i + 1} of ${screenshots.length} (Page ${pageIndex + 1})...`;
           await new Promise(r => setTimeout(r, 15));
 
           if (i > 0 && slotIndex === 0) {
-            doc.addPage(geo.formatKey, geo.orientation);
+            doc.addPage(geo.format, geo.orientation);
           }
 
-          // Render Header on the first slot of each page
+          // Draw Page Header Title & Page Number once per page
           if (slotIndex === 0 && geo.hasHeader) {
-            const headerY = geo.margin + 5.5;
+            const headerBaselineY = geo.margin + 5.2;
             if (geo.titleText) {
               doc.setFont('helvetica', 'bold');
-              doc.setFontSize(12);
+              doc.setFontSize(11.5);
               doc.setTextColor(15, 23, 42);
-              doc.text(geo.titleText, geo.margin, headerY);
+              doc.text(geo.titleText, geo.margin, headerBaselineY);
             }
             if (geo.showPageNum) {
               doc.setFont('helvetica', 'normal');
-              doc.setFontSize(9.5);
+              doc.setFontSize(9);
               doc.setTextColor(100, 116, 139);
-              doc.text(`Page ${pageIndex + 1} of ${totalPages}`, geo.pageW - geo.margin, headerY, { align: 'right' });
+              doc.text(`Page ${pageIndex + 1} of ${totalPages}`, geo.pageW - geo.margin, headerBaselineY, { align: 'right' });
             }
-            // Subtle divider line under header
             doc.setDrawColor(226, 232, 240);
             doc.setLineWidth(0.25);
-            doc.line(geo.margin, geo.margin + 7.5, geo.pageW - geo.margin, geo.margin + 7.5);
+            doc.line(geo.margin, geo.margin + 7.2, geo.pageW - geo.margin, geo.margin + 7.2);
           }
 
-          // Compute exact 2x2 slot position
+          // Compute equal 2x2 slot coordinates
           const col = slotIndex % 2;
           const row = Math.floor(slotIndex / 2);
           const slotX = geo.margin + col * (geo.slotW + geo.gap);
           const slotY = geo.margin + geo.headerHeight + row * (geo.slotH + geo.gap);
 
           if (showBorders) {
+            doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
             doc.setLineWidth(0.25);
-            doc.rect(slotX, slotY, geo.slotW, geo.slotH);
+            doc.rect(slotX, slotY, geo.slotW, geo.slotH, 'FD');
           }
 
           const innerMaxW = Math.max(10, geo.slotW - geo.pad * 2);
           const innerMaxH = Math.max(10, geo.slotH - geo.pad * 2);
 
-          // Render crisp scaled image via HTML5 Canvas
           const rendered = await renderSlotImageToCanvas(item, innerMaxW, innerMaxH, scaleMode, dpiScale);
 
-          // Center vertically and horizontally within its 2x2 slot
+          // Center screenshot inside its 2x2 slot
           const drawX = slotX + (geo.slotW - rendered.renderWidthMm) / 2;
           const drawY = slotY + (geo.slotH - rendered.renderHeightMm) / 2;
 
@@ -886,44 +977,46 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
           );
 
           if (showFrame) {
-            doc.setDrawColor(148, 163, 184);
+            doc.setDrawColor(203, 213, 225);
             doc.setLineWidth(0.2);
             doc.rect(drawX, drawY, rendered.renderWidthMm, rendered.renderHeightMm);
           }
         }
 
         exportProgressBar.style.width = '100%';
-        exportProgressText.textContent = 'Saving PDF file...';
+        exportProgressText.textContent = 'Downloading PDF...';
 
         const cleanSlug = geo.titleText
           ? geo.titleText.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
           : 'phone-screenshots-2x2';
-        doc.save(`${cleanSlug || 'screenshots'}.pdf`);
+        doc.save(`${cleanSlug || 'screenshots-2x2'}.pdf`);
       } catch (err) {
-        console.error('Error generating PDF:', err);
+        console.error('PDF generation failed:', err);
       } finally {
         setTimeout(() => {
           exportOverlay.classList.add('hidden');
           exportOverlay.classList.remove('flex');
         }, 350);
       }
-    });
+    }
 
-    // Generate 6 Synthetic High-Res Phone Screenshots (9:19.5 Modern iPhone/Android Aspect Ratio) for Instant Testing
+    desktopExportBtn.addEventListener('click', exportToPdf);
+    mobileExportBtn.addEventListener('click', exportToPdf);
+
+    // Generate 6 Synthetic High-Res 9:19.5 Phone Screenshots for Instant Mobile Testing
     window.loadSamplePhoneScreenshots = function() {
       const sampleScreens = [
-        { title: '01 • Onboarding Welcome', subtitle: 'Sign in with Passkey', accent: '#4f46e5', bg: '#eef2ff' },
-        { title: '02 • Home Dashboard', subtitle: 'Weekly Activity Overview', accent: '#0891b2', bg: '#ecfeff' },
-        { title: '03 • Analytics Detail', subtitle: 'Conversion Funnel +24%', accent: '#059669', bg: '#ecfdf5' },
-        { title: '04 • Wallet & Cards', subtitle: 'Virtual Card Active', accent: '#7c3aed', bg: '#f5f3ff' },
-        { title: '05 • Push Notifications', subtitle: 'Real-time Alerts Config', accent: '#ea580c', bg: '#fff7ed' },
-        { title: '06 • Profile & Security', subtitle: 'Biometric Lock Enabled', accent: '#db2777', bg: '#fdf2f8' }
+        { title: '01 • Welcome Sign-In', subtitle: 'Biometric Passkey Ready', accent: '#4f46e5', bg: '#eef2ff' },
+        { title: '02 • Portfolio Home', subtitle: 'Total Balance $48,920.00', accent: '#0891b2', bg: '#ecfeff' },
+        { title: '03 • Spending Insights', subtitle: 'Monthly Savings +18.4%', accent: '#059669', bg: '#ecfdf5' },
+        { title: '04 • Virtual Cards', subtitle: 'Apple Pay Provisioned', accent: '#7c3aed', bg: '#f5f3ff' },
+        { title: '05 • Instant Transfers', subtitle: 'Zero-Fee Wire Complete', accent: '#ea580c', bg: '#fff7ed' },
+        { title: '06 • Security Center', subtitle: 'Hardware Key Active', accent: '#db2777', bg: '#fdf2f8' }
       ];
 
       sampleScreens.forEach((screen, idx) => {
-        // 9:19.5 tall mobile phone resolution (e.g., 720 x 1560)
         const w = 720;
-        const h = 1560;
+        const h = 1560; // 9:19.5 modern iPhone / Android tall aspect ratio
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
@@ -933,85 +1026,83 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
 
-        // Top Accent Header Banner
+        // Header Accent Block
         ctx.fillStyle = screen.bg;
         ctx.fillRect(0, 0, w, 340);
 
-        // Status Bar (Time, Wifi, Battery)
+        // Top Status Bar
         ctx.fillStyle = '#0f172a';
         ctx.font = 'bold 28px Inter, sans-serif';
-        ctx.fillText('9:41', 56, 68);
+        ctx.fillText('9:41', 54, 68);
 
-        // Dynamic Island Pill
+        // Dynamic Island
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
         ctx.roundRect(w / 2 - 110, 32, 220, 48, 24);
         ctx.fill();
 
-        // Battery Icon
+        // Battery Indicator
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 3;
         ctx.strokeRect(w - 110, 44, 52, 26);
         ctx.fillRect(w - 105, 49, 38, 16);
 
-        // Screen Badge & Title
+        // Screen Title
         ctx.fillStyle = screen.accent;
-        ctx.font = 'bold 26px Inter, sans-serif';
-        ctx.fillText('MOBILE SCREENSHOT 9:19.5', 56, 170);
+        ctx.font = 'bold 24px Inter, sans-serif';
+        ctx.fillText('PHONE SCREENSHOT (9:19.5)', 54, 168);
 
         ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 44px Inter, sans-serif';
-        ctx.fillText(screen.title, 56, 235);
+        ctx.font = 'bold 42px Inter, sans-serif';
+        ctx.fillText(screen.title, 54, 232);
 
         ctx.fillStyle = '#475569';
-        ctx.font = '500 30px Inter, sans-serif';
-        ctx.fillText(screen.subtitle, 56, 288);
+        ctx.font = '500 28px Inter, sans-serif';
+        ctx.fillText(screen.subtitle, 54, 284);
 
-        // Mock UI Cards inside Phone Screen
+        // Mock Mobile Cards
         for (let c = 0; c < 4; c++) {
-          const cardY = 400 + c * 245;
+          const cardY = 390 + c * 240;
           ctx.fillStyle = '#f8fafc';
           ctx.strokeStyle = '#e2e8f0';
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.roundRect(56, cardY, w - 112, 205, 24);
+          ctx.roundRect(54, cardY, w - 108, 200, 24);
           ctx.fill();
           ctx.stroke();
 
-          // Avatar Circle
           ctx.fillStyle = screen.accent;
           ctx.beginPath();
-          ctx.arc(125, cardY + 75, 34, 0, Math.PI * 2);
+          ctx.arc(122, cardY + 75, 32, 0, Math.PI * 2);
           ctx.fill();
 
-          // Placeholder lines
           ctx.fillStyle = '#1e293b';
-          ctx.fillRect(185, cardY + 50, 320, 22);
+          ctx.fillRect(180, cardY + 50, 310, 22);
           ctx.fillStyle = '#94a3b8';
-          ctx.fillRect(185, cardY + 90, 420, 16);
-          ctx.fillRect(185, cardY + 122, 260, 16);
+          ctx.fillRect(180, cardY + 88, 410, 16);
+          ctx.fillRect(180, cardY + 120, 250, 16);
         }
 
-        // Bottom CTA Button
+        // Bottom Primary Button
         ctx.fillStyle = screen.accent;
         ctx.beginPath();
-        ctx.roundRect(56, h - 175, w - 112, 88, 22);
+        ctx.roundRect(54, h - 180, w - 108, 88, 22);
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 30px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Continue Flow →', w / 2, h - 120);
+        ctx.fillText('Continue Step →', w / 2, h - 125);
 
-        // Home Indicator Bar
-        ctx.fillStyle = '#cbd5e1';
+        // Bottom Home Bar Indicator
+        ctx.fillStyle = '#94a3b8';
         ctx.beginPath();
-        ctx.roundRect(w / 2 - 130, h - 36, 260, 10, 5);
+        ctx.roundRect(w / 2 - 130, h - 38, 260, 10, 5);
         ctx.fill();
 
         screenshots.push({
-          id: 'sample_' + Date.now() + '_' + idx,
-          name: `iphone-screen-0${idx + 1}.png`,
+          id: 'demo_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substring(2, 5),
+          name: `mobile-screen-0${idx + 1}.png`,
           src: canvas.toDataURL('image/png'),
           width: w,
           height: h,
@@ -1064,7 +1155,7 @@ gh repo create screenshot-grid-pdf --public --source=. --remote=origin --push</p
       }, 1800);
     });
 
-    // Initial Readout Setup
+    // Initialize Metrics Readout
     updatePageMetricsReadout();
   </script>
 </body>
